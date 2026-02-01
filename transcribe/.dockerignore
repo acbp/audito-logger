@@ -1,0 +1,36 @@
+# Ignorar diretórios de dados grandes
+data/
+*.wav
+*.mp3
+*.flac
+*.ogg
+
+# Ignorar arquivos temporários
+*.tmp
+*.log
+*.bak
+
+# Ignorar arquivos do git
+.git/
+.gitignore
+
+# Ignorar arquivos de configuração pessoais
+config/
+*.env
+.env
+
+# Ignorar diretórios de desenvolvimento
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Ignorar arquivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

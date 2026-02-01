@@ -1,0 +1,35 @@
+services:
+  capture:
+    build: ./capture
+    volumes:
+      - ./data/raw:/data/raw
+      - ./data/done:/data/done
+      - ./data/transcripts:/data/transcripts
+      - /run/user/1000/pulse:/run/user/1000/pulse
+      - ./capture:/app
+    environment:
+      - PULSE_SERVER=unix:/run/user/1000/pulse/native
+      - HOME=/tmp
+    devices:
+      - /dev/snd
+    restart: unless-stopped
+    user: "1000:1000"
+
+  transcribe:
+    build: ./transcribe
+    volumes:
+      - ./data/raw:/data/raw
+      - ./data/done:/data/done
+      - ./data/transcripts:/data/transcripts
+      - ./transcribe:/app
+    restart: unless-stopped
+    user: "1000:1000"
+
+  split_transcripts:
+    build: ./transcribe
+    volumes:
+      - ./data/transcripts:/data/transcripts
+      - ./transcribe:/app
+    command: ["./split_transcripts.sh"]
+    restart: unless-stopped
+    user: "1000:1000"
