@@ -1,12 +1,10 @@
+version: '3.8'
 services:
   capture:
     build: ./capture
     volumes:
-      - ./data/raw:/data/raw
-      - ./data/done:/data/done
-      - ./data/transcripts:/data/transcripts
+      - ./data:/data
       - /run/user/1000/pulse:/run/user/1000/pulse
-      - ./capture:/app
     environment:
       - PULSE_SERVER=unix:/run/user/1000/pulse/native
       - HOME=/tmp
@@ -18,18 +16,13 @@ services:
   transcribe:
     build: ./transcribe
     volumes:
-      - ./data/raw:/data/raw
-      - ./data/done:/data/done
-      - ./data/transcripts:/data/transcripts
-      - ./transcribe:/app
-    restart: unless-stopped
+      - ./data:/data
+    restart: on-failure
     user: "1000:1000"
 
-  split_transcripts:
-    build: ./transcribe
+  summarize:
+    build: ./summarize
     volumes:
-      - ./data/transcripts:/data/transcripts
-      - ./transcribe:/app
-    command: ["./split_transcripts.sh"]
-    restart: unless-stopped
+      - ./data:/data
+    restart: on-failure
     user: "1000:1000"

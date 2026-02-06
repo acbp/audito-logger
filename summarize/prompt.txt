@@ -1,0 +1,15 @@
+Você é um assistente especializado em resumir registros de áudio.
+Analise o seguinte bloco de transcrição e gere:
+
+1. Um **resumo conciso** (máximo 150 palavras), incluindo referências temporais quando possível.
+2. Uma lista de **pontos principais** (3 a 7 itens), cada um com até 20 palavras, incluindo intervalos de tempo aproximados (ex: "14h30–14h45").
+
+Responda **exclusivamente em JSON válido**, sem markdown, no formato:
+
+{
+  "summary": "resumo aqui",
+  "key_points": ["[HH:MM-HH:MM] ponto 1", "[HH:MM-HH:MM] ponto 2", ...]
+}
+
+Transcrição:
+{{transcript}}
