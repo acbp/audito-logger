@@ -1,2 +1,85 @@
-./transcribe/whisper.cpp
-./data
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Audio files and data
+*.wav
+*.mp3
+*.flac
+*.aac
+*.m4a
+*.ogg
+*.wma
+
+# Data directories (if not intended to be in git)
+data/
+
+# Logs
+*.log
+logs/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+.dockerenv
+.dockerinit
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Coverage reports
+coverage/
+*.gcov
+*.lcov
+*.profraw
+
+# Build outputs
+dist/
+build/
+*.out
+*.exe
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
