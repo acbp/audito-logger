@@ -3,7 +3,7 @@ services:
   capture:
     build: ./capture
     volumes:
-      - ./data:/data
+      - ./data:/data:rw
       - /run/user/1000/pulse:/run/user/1000/pulse
     environment:
       - PULSE_SERVER=unix:/run/user/1000/pulse/native
@@ -12,17 +12,41 @@ services:
       - /dev/snd
     restart: unless-stopped
     user: "1000:1000"
+    mem_limit: 4g
+    mem_reservation: 512m
+    cpus: 4.0
 
   transcribe:
     build: ./transcribe
     volumes:
-      - ./data:/data
+      - ./data:/data:rw
     restart: on-failure
     user: "1000:1000"
+    mem_limit: 4g
+    mem_reservation: 512m
+    cpus: 4.0
+
+  split_transcripts:
+    build: ./transcribe
+    volumes:
+      - ./data:/data:rw
+    restart: on-failure
+    user: "1000:1000"
+    command: ["./split_transcripts.sh"]
+    mem_limit: 4g
+    mem_reservation: 512m
+    cpus: 4.0
 
   summarize:
     build: ./summarize
     volumes:
-      - ./data:/data
+      - ./data:/data:rw
+    environment:
+      - OLLAMA_HOST=host.docker.internal
     restart: on-failure
     user: "1000:1000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    mem_limit: 4g
+    mem_reservation: 512m
+    cpus: 4.0

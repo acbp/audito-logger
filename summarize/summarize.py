@@ -100,6 +100,9 @@ def assign_times_to_keypoints(key_points: list, timestamps: list) -> list:
 
 def call_ollama(prompt: str) -> dict:
     import subprocess
+    import socket
+    
+    # Tenta primeiro usando o ollama diretamente no host
     try:
         result = subprocess.run(
             ["ollama", "run", "gemma3:1b"],
@@ -109,13 +112,46 @@ def call_ollama(prompt: str) -> dict:
             timeout=300
         )
         if result.returncode != 0:
+            print(f"⚠️ Ollama local falhou, tentando via API: {result.stderr}", file=sys.stderr)
             raise RuntimeError(f"Ollama error: {result.stderr}")
         output = result.stdout.strip()
         if output.startswith("```json"):
             output = output.split("```json", 1)[1].split("```")[0]
         return json.loads(output)
     except Exception as e:
-        print(f"❌ Falha ao processar com Ollama: {e}", file=sys.stderr)
+        print(f"❌ Falha ao processar com Ollama local: {e}", file=sys.stderr)
+        
+        # Tenta via API se o método direto falhar
+        try:
+            import requests
+            response = requests.post(
+                "http://host.docker.internal:11434/api/generate",
+                json={
+                    "model": "gemma3:1b",
+                    "prompt": prompt,
+                    "stream": False
+                },
+                timeout=300
+            )
+            
+            if response.status_code == 200:
+                result_text = response.json()["response"]
+                
+                # Extrai o JSON da resposta
+                import re
+                json_match = re.search(r'\{.*\}', result_text, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group()
+                    return json.loads(json_str)
+                else:
+                    print("⚠️ Não foi possível extrair JSON da resposta da API", file=sys.stderr)
+                    return {"summary": "[SUMÁRIO VIA API]", "key_points": ["[PROCESSADO COM ERROS]"]}
+            else:
+                print(f"⚠️ API retornou código {response.status_code}: {response.text}", file=sys.stderr)
+        except Exception as api_error:
+            print(f"❌ Falha ao processar com API Ollama: {api_error}", file=sys.stderr)
+        
+        # Retorna fallback em caso de falha total
         return {"summary": "[ERRO NA SUMARIZAÇÃO]", "key_points": []}
 
 
@@ -137,37 +173,75 @@ def json_to_markdown(result: dict, date_str: str, transcript: str = "") -> str:
     return markdown_content
 
 def main():
-    transcript_files = sorted(Path(TRANSCRIPTS_DIR).glob("*.txt"))
-    for transcript_path in transcript_files:
-        date_str = transcript_path.stem.replace("-transcription", "")
-        summary_path = Path(SUMMARIES_DIR) / f"{date_str}-summary.md"  # Changed to .md extension
-        done_marker = Path(DONE_DIR) / f"{date_str}.done"
+    from watchdog.observers import Observer
+    from watchdog.events import FileSystemEventHandler
+    
+    class TranscriptHandler(FileSystemEventHandler):
+        def on_created(self, event):
+            if event.is_directory:
+                return
+            
+            if event.src_path.endswith('.txt'):
+                self.process_transcript(event.src_path)
+        
+        def on_modified(self, event):
+            # Processa arquivos modificados também, caso sejam atualizados
+            if event.is_directory:
+                return
+                
+            if event.src_path.endswith('.txt'):
+                # Adiciona um pequeno delay para garantir que a escrita foi concluída
+                time.sleep(2)
+                self.process_transcript(event.src_path)
+        
+        def process_transcript(self, file_path):
+            transcript_path = Path(file_path)
+            date_str = transcript_path.stem.replace("-transcription", "")
+            summary_path = Path(SUMMARIES_DIR) / f"{date_str}-summary.md"
+            done_marker = Path(DONE_DIR) / f"{date_str}.done"
 
-        if done_marker.exists():
-            continue
+            if done_marker.exists():
+                return
 
-        print(f"🧠 Sumarizando: {transcript_path.name}")
+            print(f"🧠 Sumarizando: {transcript_path.name}")
 
-        with open(transcript_path, "r", encoding="utf-8") as f:
-            transcript = f.read().strip()
+            with open(transcript_path, "r", encoding="utf-8") as f:
+                transcript = f.read().strip()
 
-        if not transcript:
-            print(f"⚠️  Transcrição vazia: {transcript_path.name}")
+            if not transcript:
+                print(f"⚠️  Transcrição vazia: {transcript_path.name}")
+                done_marker.touch()
+                return
+
+            prompt = BASE_PROMPT.replace("{{transcript}}", transcript)
+            result = call_ollama(prompt)
+
+            # Convert JSON result to markdown
+            markdown_content = json_to_markdown(result, date_str, transcript)
+
+            with open(summary_path, "w", encoding="utf-8") as f:
+                f.write(markdown_content)
+
             done_marker.touch()
-            continue
-
-        prompt = BASE_PROMPT.replace("{{transcript}}", transcript)
-        result = call_ollama(prompt)
-
-        # Convert JSON result to markdown
-        markdown_content = json_to_markdown(result, date_str, transcript)
-
-        with open(summary_path, "w", encoding="utf-8") as f:
-            f.write(markdown_content)
-
-        done_marker.touch()
-        print(f"✅ Salvo: {summary_path.name}")
-        time.sleep(2)
+            print(f"✅ Salvo: {summary_path.name}")
+    
+    # Configura o observador de arquivos
+    event_handler = TranscriptHandler()
+    observer = Observer()
+    observer.schedule(event_handler, TRANSCRIPTS_DIR, recursive=False)
+    
+    print(f"🔍 Monitorando mudanças em {TRANSCRIPTS_DIR}")
+    observer.start()
+    
+    try:
+        # Mantém o programa rodando
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+        print("\n🛑 Parando o monitoramento...")
+    
+    observer.join()
 
 if __name__ == "__main__":
     main()
